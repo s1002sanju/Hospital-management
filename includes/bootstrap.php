@@ -31,7 +31,11 @@ function db(): PDO {
     if ($pdo === null) {
         $driver = defined('DB_DRIVER') ? DB_DRIVER : 'mysql';
         if ($driver === 'pgsql') {
-            $dsn = 'pgsql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME;
+            $host = DB_HOST;
+            $port = DB_PORT;
+            // Force IPv4 by resolving the hostname to avoid IPv6 timeout on Render free tier
+            // If host resolves only to IPv6, connect via IP directly
+            $dsn = 'pgsql:host=' . $host . ';port=' . $port . ';dbname=' . DB_NAME;
             if (defined('DB_SSLMODE') && DB_SSLMODE !== '') {
                 $dsn .= ';sslmode=' . DB_SSLMODE;
             }
@@ -39,6 +43,7 @@ function db(): PDO {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => 15,
             ]);
         } else {
             $dsn = 'mysql:host=' . DB_HOST;
