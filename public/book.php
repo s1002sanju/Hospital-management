@@ -8,8 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $pdo->beginTransaction();
         // Atomic claim: only ONE concurrent request can flip is_booked 0 -> 1 (prevents double booking).
-        $timeExpr = is_pgsql() ? "(slot_date + start_time) > NOW()" : "TIMESTAMP(slot_date,start_time) > NOW()";
-        $claim = $pdo->prepare("UPDATE slots SET is_booked=true WHERE id=? AND is_booked=false AND $timeExpr");
+        $claim = $pdo->prepare("UPDATE slots SET is_booked=true WHERE id=? AND is_booked=false AND " . sql_slot_in_future());
         $claim->execute([$slotId]);
         if ($claim->rowCount() !== 1) { $pdo->rollBack(); flash('danger', 'Sorry, that slot was just taken or has passed. Pick another.'); redirect($_SERVER['REQUEST_URI']); }
         $insertSql = is_pgsql()
@@ -36,8 +35,7 @@ $date = $_GET['date'] ?? date('Y-m-d');
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
 $slots = [];
 if ($doctorId) {
-    $timeExpr = is_pgsql() ? "(slot_date + start_time) > NOW()" : "TIMESTAMP(slot_date,start_time) > NOW()";
-    $st = $pdo->prepare("SELECT id, start_time, end_time FROM slots WHERE doctor_id=? AND slot_date=? AND is_booked=false AND $timeExpr ORDER BY start_time");
+    $st = $pdo->prepare("SELECT id, start_time, end_time FROM slots WHERE doctor_id=? AND slot_date=? AND is_booked=false AND " . sql_slot_in_future() . " ORDER BY start_time");
     $st->execute([$doctorId, $date]); $slots = $st->fetchAll();
 }
 require __DIR__ . '/../includes/header.php'; ?>

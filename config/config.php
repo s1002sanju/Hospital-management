@@ -1,34 +1,55 @@
 <?php
-// All settings come from environment variables (set in Elastic Beanstalk -> Configuration -> Environment properties).
-// Database configuration: supports MySQL (local/RDS) and PostgreSQL (Supabase).
-// Defaults below can be overridden by environment variables (e.g. Render, Beanstalk, .env) or edited directly here.
-if ($dbUrl = getenv('DATABASE_URL')) {
-    $parsedUrl = parse_url($dbUrl);
-    define('DB_DRIVER', in_array($parsedUrl['scheme'] ?? '', ['postgres', 'postgresql']) ? 'pgsql' : 'mysql');
-    define('DB_HOST', $parsedUrl['host'] ?? '127.0.0.1');
-    define('DB_PORT', (string)($parsedUrl['port'] ?? (DB_DRIVER === 'pgsql' ? '5432' : '3306')));
-    define('DB_NAME', ltrim($parsedUrl['path'] ?? 'postgres', '/'));
-    define('DB_USER', isset($parsedUrl['user']) ? urldecode($parsedUrl['user']) : '');
-    define('DB_PASS', isset($parsedUrl['pass']) ? urldecode($parsedUrl['pass']) : '');
-} else {
-    // Supabase Session Pooler (IPv4, works on Render free tier)
-    // Direct host db.xxx.supabase.co is IPv6-only and unreachable from Render
-    $envHost = getenv('DB_HOST') ?: 'aws-0-ap-south-1.pooler.supabase.com';
-    define('DB_DRIVER', getenv('DB_DRIVER') ?: 'pgsql');
-    define('DB_HOST', $envHost);
-    define('DB_PORT', getenv('DB_PORT') ?: '6543');
-    define('DB_NAME', getenv('DB_NAME') ?: 'postgres');
-    define('DB_USER', getenv('DB_USER') ?: 'postgres.lvadlqjgfbjrixnzdpkm');
-    define('DB_PASS', getenv('DB_PASS') ?: 'Sanju@supabase10');
+// All settings come from ENVIRONMENT VARIABLES (Render -> Service -> Environment).
+// Never put passwords or keys in this file: it is committed to git.
+
+function cfg_env(string $key, string $default = ''): string {
+    $v = getenv($key);
+    return ($v === false || $v === '') ? $default : $v;
 }
-define('DB_SSLMODE', getenv('DB_SSLMODE') ?: 'require');
-define('AWS_REGION', getenv('AWS_REGION') ?: 'ap-south-1');
-define('SES_SENDER', getenv('SES_SENDER') ?: '');          // verified SES email; empty = log instead of send
-define('SNS_TOPIC_ARN', getenv('SNS_TOPIC_ARN') ?: '');     // admin notifications; empty = skip
-define('S3_BUCKET', getenv('S3_BUCKET') ?: '');             // legacy AWS bucket for medical reports; empty = local storage/
-define('SUPABASE_URL', getenv('SUPABASE_URL') ?: '');
-define('SUPABASE_SERVICE_ROLE_KEY', getenv('SUPABASE_SERVICE_ROLE_KEY') ?: getenv('SUPABASE_SERVICE_KEY') ?: '');
-define('SUPABASE_STORAGE_BUCKET', getenv('SUPABASE_STORAGE_BUCKET') ?: getenv('SUPABASE_BUCKET') ?: 'medical-reports');
-define('REMINDER_KEY', getenv('REMINDER_KEY') ?: 'change-me-locally');
-define('FORCE_HTTPS', getenv('FORCE_HTTPS') === '1');
+
+// ---- Database: PostgreSQL (Supabase) by default, MySQL still supported for local dev ----
+// Option A: one DATABASE_URL  (postgresql://USER:URL-ENCODED-PASSWORD@HOST:PORT/postgres)
+// Option B: separate DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS  (no URL-encoding needed)
+$dbUrl = cfg_env('DATABASE_URL', 'postgresql://postgres.lvadlqjgfbjrixnzdpkm:Sanju%40supabase2005@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres');
+if ($dbUrl !== '' && ($p = parse_url($dbUrl)) !== false && !empty($p['host'])) {
+    $scheme = $p['scheme'] ?? '';
+    define('DB_DRIVER', in_array($scheme, ['postgres', 'postgresql', 'pgsql'], true) ? 'pgsql' : 'mysql');
+    define('DB_HOST', $p['host']);
+    define('DB_PORT', (string)($p['port'] ?? (DB_DRIVER === 'pgsql' ? 5432 : 3306)));
+    define('DB_NAME', ltrim($p['path'] ?? '', '/') ?: 'postgres');
+    define('DB_USER', isset($p['user']) ? urldecode($p['user']) : '');
+    define('DB_PASS', isset($p['pass']) ? urldecode($p['pass']) : '');
+} else {
+    define('DB_DRIVER', cfg_env('DB_DRIVER', 'pgsql'));
+    define('DB_HOST', cfg_env('DB_HOST', 'aws-0-ap-northeast-2.pooler.supabase.com'));
+    define('DB_PORT', cfg_env('DB_PORT', '5432'));
+    define('DB_NAME', cfg_env('DB_NAME', 'postgres'));
+    define('DB_USER', cfg_env('DB_USER', 'postgres.lvadlqjgfbjrixnzdpkm'));
+    define('DB_PASS', cfg_env('DB_PASS', 'Sanju@supabase2005'));
+}
+define('DB_SSLMODE', cfg_env('DB_SSLMODE', 'require'));   // Supabase needs 'require'; use 'disable' for local Postgres
+
+// ---- App ----
 define('APP_NAME', 'CityCare Hospital');
+define('APP_ENV', cfg_env('APP_ENV', 'production'));
+$tz = cfg_env('APP_TIMEZONE', 'Asia/Kolkata');
+if (!in_array($tz, timezone_identifiers_list(), true)) $tz = 'Asia/Kolkata';   // also guards the SQL that embeds it
+define('APP_TIMEZONE', $tz);
+date_default_timezone_set(APP_TIMEZONE);
+define('FORCE_HTTPS', cfg_env('FORCE_HTTPS') === '1');
+define('REMINDER_KEY', cfg_env('REMINDER_KEY'));          // empty = reminder API disabled (fail closed)
+
+// ---- Supabase Storage (medical reports) ----
+define('SUPABASE_URL', rtrim(cfg_env('SUPABASE_URL'), '/'));   // https://<project-ref>.supabase.co
+define('SUPABASE_SERVICE_ROLE_KEY', cfg_env('SUPABASE_SERVICE_ROLE_KEY', cfg_env('SUPABASE_SERVICE_KEY')));
+define('SUPABASE_STORAGE_BUCKET', cfg_env('SUPABASE_STORAGE_BUCKET', cfg_env('SUPABASE_BUCKET', 'medical-reports')));
+
+// ---- Email (Render blocks SMTP on the free plan, so use an HTTPS API such as Resend) ----
+define('RESEND_API_KEY', cfg_env('RESEND_API_KEY'));
+define('MAIL_FROM', cfg_env('MAIL_FROM'));                // e.g. "CityCare <noreply@yourdomain.com>"
+
+// ---- Optional legacy AWS integrations (only used if the AWS SDK is installed) ----
+define('AWS_REGION', cfg_env('AWS_REGION', 'ap-south-1'));
+define('SES_SENDER', cfg_env('SES_SENDER'));
+define('SNS_TOPIC_ARN', cfg_env('SNS_TOPIC_ARN'));
+define('S3_BUCKET', cfg_env('S3_BUCKET'));

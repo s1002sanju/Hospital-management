@@ -1,7 +1,10 @@
-import sys, re, uuid, time
+import os, sys, re, uuid, time
 import requests
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+REMINDER_KEY = os.environ.get("REMINDER_KEY", "")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@hospital.com")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
 CSRF_RE = re.compile(r'name="csrf" value="([a-f0-9]+)"')
 
 def get_csrf(session, path):
@@ -93,8 +96,8 @@ try:
     csrf = get_csrf(admin_session, "/login.php")
     r_admin_login = admin_session.post(BASE_URL + "/login.php", data={
         "csrf": csrf,
-        "email": "admin@hospital.com",
-        "password": "Admin@123"
+        "email": ADMIN_EMAIL,
+        "password": ADMIN_PASSWORD
     }, allow_redirects=True)
     if "Admin Dashboard" in r_admin_login.text:
         record("Admin Login & Role-Based Access Control", True, "Admin access granted to /admin/index.php")
@@ -199,7 +202,7 @@ try:
     unauth_blocked = (r_unauth.status_code == 401)
     
     # Authorized request
-    r_auth = requests.get(BASE_URL + "/api/reminders.php", headers={"X-Reminder-Key": "change-me-locally"})
+    r_auth = requests.get(BASE_URL + "/api/reminders.php", headers={"X-Reminder-Key": REMINDER_KEY})
     auth_ok = (r_auth.status_code == 200 and "appointments" in r_auth.json())
     
     if unauth_blocked and auth_ok:

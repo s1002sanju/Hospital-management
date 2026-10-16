@@ -4,21 +4,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $own = $pdo->prepare("SELECT * FROM appointments WHERE id=? AND user_id=? AND status='booked'"); $own->execute([$id, $user['id']]); $a = $own->fetch();
     if (!$a) { flash('danger', 'Appointment not found.'); redirect('/my_appointments.php'); }
     if (($_POST['action'] ?? '') === 'cancel') {
-        $pdo->beginTransaction();
-        $pdo->prepare("UPDATE appointments SET status='cancelled', active_slot_id=NULL WHERE id=?")->execute([$id]);
-        $pdo->prepare("UPDATE slots SET is_booked=false WHERE id=?")->execute([$a['slot_id']]);
-        $pdo->commit();
+        try {
+            $pdo->beginTransaction();
+            $pdo->prepare("UPDATE appointments SET status='cancelled', active_slot_id=NULL WHERE id=?")->execute([$id]);
+            $pdo->prepare("UPDATE slots SET is_booked=false WHERE id=?")->execute([$a['slot_id']]);
+            $pdo->commit();
+        } catch (Throwable $ex) { if ($pdo->inTransaction()) $pdo->rollBack(); error_log((string)$ex); flash('danger', 'Could not cancel. Please try again.'); redirect('/my_appointments.php'); }
         send_email($user['email'], 'Appointment cancelled', "Your appointment #$id was cancelled.");
         flash('success', 'Appointment cancelled.');
-    } elseif (($_POST['action'] ?? '') === 'upload' && isset($_FILES['report']) && $_FILES['report']['error'] === UPLOAD_ERR_OK) {
-        $f = $_FILES['report']; $mime = (new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);
-        $ext = ['application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png'][$mime] ?? null;
-        if (!$ext || $f['size'] > 2 * 1024 * 1024) { flash('danger', 'Only PDF/JPG/PNG up to 2 MB allowed.'); }
+    } elseif (($_POST['action'] ?? '') === 'upload') {
+        $f = $_FILES['report'] ?? null;
+        if (!$f || $f['error'] === UPLOAD_ERR_NO_FILE) { flash('danger', 'Choose a file to upload first.'); }
+        elseif ($f['error'] === UPLOAD_ERR_INI_SIZE || $f['error'] === UPLOAD_ERR_FORM_SIZE) { flash('danger', 'File too large (2 MB maximum).'); }
+        elseif ($f['error'] !== UPLOAD_ERR_OK) { flash('danger', 'Upload failed. Please try again.'); }
         else {
-            $key = "reports/{$user['id']}/appt{$id}_" . bin2hex(random_bytes(6)) . ".$ext";
-            store_report($f['tmp_name'], $key);
-            $pdo->prepare("UPDATE appointments SET report_key=? WHERE id=?")->execute([$key, $id]);
-            flash('success', 'Report uploaded securely.');
+            $mime = (new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);
+            $ext = ['application/pdf' => 'pdf', 'image/jpeg' => 'jpg', 'image/png' => 'png'][$mime] ?? null;
+            if (!$ext || $f['size'] > 2 * 1024 * 1024) { flash('danger', 'Only PDF/JPG/PNG up to 2 MB allowed.'); }
+            else {
+                $key = "reports/{$user['id']}/appt{$id}_" . bin2hex(random_bytes(6)) . ".$ext";
+                if (store_report($f['tmp_name'], $key, $mime)) {
+                    $pdo->prepare("UPDATE appointments SET report_key=? WHERE id=?")->execute([$key, $id]);
+                    flash('success', 'Report uploaded securely.');
+                } else { flash('danger', 'Report storage is unavailable right now. Please try again later.'); }
+            }
         }
     }
     redirect('/my_appointments.php');

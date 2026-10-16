@@ -1,0 +1,18 @@
+name: Daily appointment reminders
+on:
+  schedule:
+    - cron: '30 2 * * *'     # 08:00 IST
+  workflow_dispatch:
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the app
+        env:
+          APP_URL: ${{ secrets.APP_URL }}            # https://citycare-hospital.onrender.com
+          REMINDER_KEY: ${{ secrets.REMINDER_KEY }}  # same value as the Render env var
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$REMINDER_KEY" ]; then echo "APP_URL / REMINDER_KEY secrets not set - skipping"; exit 0; fi
+          # free Render services sleep: first request may need up to ~60s to wake the app
+          curl -fsS --retry 3 --retry-delay 10 --max-time 90 -X POST \
+            -H "X-Reminder-Key: $REMINDER_KEY" "$APP_URL/api/reminders.php?action=send"

@@ -1,9 +1,14 @@
 .git
-.gitignore
 .github
+.gitignore
+.gitattributes
+.env
+*.zip
 README.md
 docs/
 tests/
-storage/
+legacy-aws/
+storage/*
 node_modules/
+vendor/
 **/.DS_Store
