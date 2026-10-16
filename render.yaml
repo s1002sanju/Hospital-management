@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: citycare-hospital
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: FORCE_HTTPS
+        value: "1"
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: DB_DRIVER
+        sync: false
+      - key: DB_SSLMODE
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: medical-reports
+      - key: REMINDER_KEY
+        generateValue: true
+      - key: AWS_REGION
+        value: ap-south-1

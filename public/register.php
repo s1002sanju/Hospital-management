@@ -12,7 +12,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db()->prepare("INSERT INTO users (name,email,phone,password_hash) VALUES (?,?,?,?)")
                 ->execute([$name, $email, $phone, password_hash($pass, PASSWORD_BCRYPT)]);
             flash('success', 'Registered! Please log in.'); redirect('/login.php');
-        } catch (PDOException $ex) { $err = ($ex->getCode() === '23000') ? 'Email already registered.' : 'Registration failed.'; }
+        } catch (PDOException $ex) {
+            $code = (string)$ex->getCode();
+            $err = in_array($code, ['23000', '23505'], true) || str_starts_with($code, '23') ? 'Email already registered.' : 'Registration failed.';
+        }
     }
 }
 require __DIR__ . '/../includes/header.php'; ?>

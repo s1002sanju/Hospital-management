@@ -1,9 +1,12 @@
 <?php require __DIR__ . '/../../includes/bootstrap.php'; require_admin(); $title = 'Doctors'; $pdo = db();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') { csrf_check();
     $a = $_POST['action'] ?? '';
-    if ($a === 'add_dept' && trim($_POST['name'] ?? '') !== '') { $pdo->prepare("INSERT IGNORE INTO departments (name) VALUES (?)")->execute([trim($_POST['name'])]); }
+    if ($a === 'add_dept' && trim($_POST['name'] ?? '') !== '') {
+        $sql = is_pgsql() ? "INSERT INTO departments (name) VALUES (?) ON CONFLICT (name) DO NOTHING" : "INSERT IGNORE INTO departments (name) VALUES (?)";
+        $pdo->prepare($sql)->execute([trim($_POST['name'])]);
+    }
     if ($a === 'add_doc' && trim($_POST['name'] ?? '') !== '') { $pdo->prepare("INSERT INTO doctors (name, department_id, qualification, fee) VALUES (?,?,?,?)")->execute([trim($_POST['name']), (int)$_POST['department_id'], trim($_POST['qualification'] ?? ''), (float)($_POST['fee'] ?? 0)]); }
-    if ($a === 'toggle') { $pdo->prepare("UPDATE doctors SET is_active = 1 - is_active WHERE id=?")->execute([(int)$_POST['id']]); }
+    if ($a === 'toggle') { $pdo->prepare("UPDATE doctors SET is_active = NOT is_active WHERE id=?")->execute([(int)$_POST['id']]); }
     redirect('/admin/doctors.php'); }
 $depts = $pdo->query("SELECT * FROM departments ORDER BY name")->fetchAll();
 $docs = $pdo->query("SELECT d.*, dp.name AS dept FROM doctors d JOIN departments dp ON dp.id=d.department_id ORDER BY d.name")->fetchAll();

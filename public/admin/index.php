@@ -1,6 +1,6 @@
 <?php require __DIR__ . '/../../includes/bootstrap.php'; require_admin(); $title = 'Dashboard'; $pdo = db();
-$tot = $pdo->query("SELECT COUNT(*) total, SUM(status='booked') booked, SUM(status='cancelled') cancelled, SUM(status='completed') completed FROM appointments")->fetch();
-$today = (int)$pdo->query("SELECT COUNT(*) FROM appointments a JOIN slots s ON s.id=a.slot_id WHERE s.slot_date=CURDATE() AND a.status='booked'")->fetchColumn();
+$tot = $pdo->query("SELECT COUNT(*) total, COUNT(CASE WHEN status='booked' THEN 1 END) booked, COUNT(CASE WHEN status='cancelled' THEN 1 END) cancelled, COUNT(CASE WHEN status='completed' THEN 1 END) completed FROM appointments")->fetch();
+$today = (int)$pdo->query("SELECT COUNT(*) FROM appointments a JOIN slots s ON s.id=a.slot_id WHERE s.slot_date=CURRENT_DATE AND a.status='booked'")->fetchColumn();
 $patients = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='patient'")->fetchColumn();
 $byDept = $pdo->query("SELECT dp.name, COUNT(a.id) c FROM departments dp LEFT JOIN doctors d ON d.department_id=dp.id LEFT JOIN slots s ON s.doctor_id=d.id LEFT JOIN appointments a ON a.slot_id=s.id AND a.status<>'cancelled' GROUP BY dp.id ORDER BY dp.name")->fetchAll();
 require __DIR__ . '/../../includes/header.php'; ?>

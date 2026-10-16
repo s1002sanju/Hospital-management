@@ -6,7 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (($_POST['action'] ?? '') === 'cancel') {
         $pdo->beginTransaction();
         $pdo->prepare("UPDATE appointments SET status='cancelled', active_slot_id=NULL WHERE id=?")->execute([$id]);
-        $pdo->prepare("UPDATE slots SET is_booked=0 WHERE id=?")->execute([$a['slot_id']]);
+        $pdo->prepare("UPDATE slots SET is_booked=false WHERE id=?")->execute([$a['slot_id']]);
         $pdo->commit();
         send_email($user['email'], 'Appointment cancelled', "Your appointment #$id was cancelled.");
         flash('success', 'Appointment cancelled.');

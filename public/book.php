@@ -8,12 +8,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $pdo->beginTransaction();
         // Atomic claim: only ONE concurrent request can flip is_booked 0 -> 1 (prevents double booking).
-        $claim = $pdo->prepare("UPDATE slots SET is_booked=1 WHERE id=? AND is_booked=0 AND TIMESTAMP(slot_date,start_time) > NOW()");
+        $timeExpr = is_pgsql() ? "(slot_date + start_time) > NOW()" : "TIMESTAMP(slot_date,start_time) > NOW()";
+        $claim = $pdo->prepare("UPDATE slots SET is_booked=true WHERE id=? AND is_booked=false AND $timeExpr");
         $claim->execute([$slotId]);
         if ($claim->rowCount() !== 1) { $pdo->rollBack(); flash('danger', 'Sorry, that slot was just taken or has passed. Pick another.'); redirect($_SERVER['REQUEST_URI']); }
-        $pdo->prepare("INSERT INTO appointments (user_id, slot_id, active_slot_id, reason) VALUES (?,?,?,?)")
-            ->execute([$user['id'], $slotId, $slotId, $reason]);
-        $apptId = (int)$pdo->lastInsertId();
+        $insertSql = is_pgsql()
+            ? "INSERT INTO appointments (user_id, slot_id, active_slot_id, reason) VALUES (?,?,?,?) RETURNING id"
+            : "INSERT INTO appointments (user_id, slot_id, active_slot_id, reason) VALUES (?,?,?,?)";
+        $ins = $pdo->prepare($insertSql);
+        $ins->execute([$user['id'], $slotId, $slotId, $reason]);
+        $apptId = is_pgsql() ? (int)$ins->fetchColumn() : (int)$pdo->lastInsertId();
         $pdo->commit();
     } catch (Throwable $ex) { if ($pdo->inTransaction()) $pdo->rollBack(); error_log((string)$ex); flash('danger', 'Booking failed. Please try again.'); redirect('/book.php'); }
 
@@ -26,13 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ---- Show doctors / dates / free slots (GET) ------------------------------------
-$doctors = $pdo->query("SELECT d.id, d.name, dp.name AS dept FROM doctors d JOIN departments dp ON dp.id=d.department_id WHERE d.is_active=1 ORDER BY dp.name, d.name")->fetchAll();
+$doctors = $pdo->query("SELECT d.id, d.name, dp.name AS dept FROM doctors d JOIN departments dp ON dp.id=d.department_id WHERE d.is_active=true ORDER BY dp.name, d.name")->fetchAll();
 $doctorId = (int)($_GET['doctor_id'] ?? 0);
 $date = $_GET['date'] ?? date('Y-m-d');
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
 $slots = [];
 if ($doctorId) {
-    $st = $pdo->prepare("SELECT id, start_time, end_time FROM slots WHERE doctor_id=? AND slot_date=? AND is_booked=0 AND TIMESTAMP(slot_date,start_time) > NOW() ORDER BY start_time");
+    $timeExpr = is_pgsql() ? "(slot_date + start_time) > NOW()" : "TIMESTAMP(slot_date,start_time) > NOW()";
+    $st = $pdo->prepare("SELECT id, start_time, end_time FROM slots WHERE doctor_id=? AND slot_date=? AND is_booked=false AND $timeExpr ORDER BY start_time");
     $st->execute([$doctorId, $date]); $slots = $st->fetchAll();
 }
 require __DIR__ . '/../includes/header.php'; ?>

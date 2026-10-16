@@ -4,7 +4,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') { csrf_check(); $id = (int)$_POST['id
         $a = $pdo->prepare("SELECT slot_id FROM appointments WHERE id=? AND status='booked'"); $a->execute([$id]); $row = $a->fetch();
         if ($row) { $pdo->beginTransaction();
             $pdo->prepare("UPDATE appointments SET status=?, active_slot_id=" . ($new === 'cancelled' ? 'NULL' : 'active_slot_id') . " WHERE id=?")->execute([$new, $id]);
-            if ($new === 'cancelled') $pdo->prepare("UPDATE slots SET is_booked=0 WHERE id=?")->execute([$row['slot_id']]);
+            if ($new === 'cancelled') $pdo->prepare("UPDATE slots SET is_booked=false WHERE id=?")->execute([$row['slot_id']]);
             $pdo->commit(); flash('success', "Appointment #$id marked $new."); } }
     redirect('/admin/appointments.php'); }
 $f = $_GET['status'] ?? ''; $sql = "SELECT a.id, a.status, a.reason, u.name AS patient, u.phone, s.slot_date, s.start_time, dr.name AS doctor FROM appointments a JOIN users u ON u.id=a.user_id JOIN slots s ON s.id=a.slot_id JOIN doctors dr ON dr.id=s.doctor_id";

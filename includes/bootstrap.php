@@ -29,13 +29,39 @@ set_exception_handler(function (Throwable $e) {
 function db(): PDO {
     static $pdo = null;
     if ($pdo === null) {
-        $pdo = new PDO('mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4', DB_USER, DB_PASS, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
+        $driver = defined('DB_DRIVER') ? DB_DRIVER : 'mysql';
+        if ($driver === 'pgsql') {
+            $dsn = 'pgsql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME;
+            if (defined('DB_SSLMODE') && DB_SSLMODE !== '') {
+                $dsn .= ';sslmode=' . DB_SSLMODE;
+            }
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+        } else {
+            $dsn = 'mysql:host=' . DB_HOST;
+            if (defined('DB_PORT') && DB_PORT !== '') {
+                $dsn .= ';port=' . DB_PORT;
+            }
+            $dsn .= ';dbname=' . DB_NAME . ';charset=utf8mb4';
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+        }
     }
     return $pdo;
+}
+
+function is_pgsql(): bool {
+    static $isPg = null;
+    if ($isPg === null) {
+        $isPg = (db()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql');
+    }
+    return $isPg;
 }
 function e($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
