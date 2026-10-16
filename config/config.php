@@ -11,13 +11,15 @@ if ($dbUrl = getenv('DATABASE_URL')) {
     define('DB_USER', isset($parsedUrl['user']) ? urldecode($parsedUrl['user']) : '');
     define('DB_PASS', isset($parsedUrl['pass']) ? urldecode($parsedUrl['pass']) : '');
 } else {
-    $envHost = getenv('DB_HOST') ?: '127.0.0.1';
-    define('DB_DRIVER', getenv('DB_DRIVER') ?: 'mysql');
+    // Supabase Session Pooler (IPv4, works on Render free tier)
+    // Direct host db.xxx.supabase.co is IPv6-only and unreachable from Render
+    $envHost = getenv('DB_HOST') ?: 'aws-0-ap-south-1.pooler.supabase.com';
+    define('DB_DRIVER', getenv('DB_DRIVER') ?: 'pgsql');
     define('DB_HOST', $envHost);
-    define('DB_PORT', getenv('DB_PORT') ?: '3306');
-    define('DB_NAME', getenv('DB_NAME') ?: 'hospital_db');
-    define('DB_USER', getenv('DB_USER') ?: 'root');
-    define('DB_PASS', getenv('DB_PASS') ?: '');
+    define('DB_PORT', getenv('DB_PORT') ?: '6543');
+    define('DB_NAME', getenv('DB_NAME') ?: 'postgres');
+    define('DB_USER', getenv('DB_USER') ?: 'postgres.lvadlqjgfbjrixnzdpkm');
+    define('DB_PASS', getenv('DB_PASS') ?: 'Sanju@supabase10');
 }
 define('DB_SSLMODE', getenv('DB_SSLMODE') ?: 'require');
 define('AWS_REGION', getenv('AWS_REGION') ?: 'ap-south-1');

@@ -62,3 +62,4 @@ try {
     echo "  Code: " . $e->getCode() . "\n";
     echo "  Message: " . $e->getMessage() . "\n";
 }
+
