@@ -10,7 +10,7 @@ function cfg_env(string $key, string $default = ''): string {
 // ---- Database: PostgreSQL (Supabase) by default, MySQL still supported for local dev ----
 // Option A: one DATABASE_URL  (postgresql://USER:URL-ENCODED-PASSWORD@HOST:PORT/postgres)
 // Option B: separate DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS  (no URL-encoding needed)
-$dbUrl = cfg_env('DATABASE_URL', 'postgresql://postgres.lvadlqjgfbjrixnzdpkm:Sanju%40supabase2005@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres');
+$dbUrl = cfg_env('DATABASE_URL');
 if ($dbUrl !== '' && ($p = parse_url($dbUrl)) !== false && !empty($p['host'])) {
     $scheme = $p['scheme'] ?? '';
     define('DB_DRIVER', in_array($scheme, ['postgres', 'postgresql', 'pgsql'], true) ? 'pgsql' : 'mysql');
@@ -21,11 +21,11 @@ if ($dbUrl !== '' && ($p = parse_url($dbUrl)) !== false && !empty($p['host'])) {
     define('DB_PASS', isset($p['pass']) ? urldecode($p['pass']) : '');
 } else {
     define('DB_DRIVER', cfg_env('DB_DRIVER', 'pgsql'));
-    define('DB_HOST', cfg_env('DB_HOST', 'aws-0-ap-northeast-2.pooler.supabase.com'));
-    define('DB_PORT', cfg_env('DB_PORT', '5432'));
-    define('DB_NAME', cfg_env('DB_NAME', 'postgres'));
-    define('DB_USER', cfg_env('DB_USER', 'postgres.lvadlqjgfbjrixnzdpkm'));
-    define('DB_PASS', cfg_env('DB_PASS', 'Sanju@supabase2005'));
+    define('DB_HOST', cfg_env('DB_HOST'));
+    define('DB_PORT', cfg_env('DB_PORT', DB_DRIVER === 'pgsql' ? '5432' : '3306'));
+    define('DB_NAME', cfg_env('DB_NAME', DB_DRIVER === 'pgsql' ? 'postgres' : 'hospital_db'));
+    define('DB_USER', cfg_env('DB_USER'));
+    define('DB_PASS', cfg_env('DB_PASS'));
 }
 define('DB_SSLMODE', cfg_env('DB_SSLMODE', 'require'));   // Supabase needs 'require'; use 'disable' for local Postgres
 
