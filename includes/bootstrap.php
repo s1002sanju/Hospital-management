@@ -16,7 +16,7 @@ if (PHP_SAPI !== 'cli') {
     header('X-Frame-Options: DENY');
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: same-origin');
-    header("Content-Security-Policy: default-src 'self'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'");
+    header("Content-Security-Policy: default-src 'self'; style-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'");
     if ($isHttps) header('Strict-Transport-Security: max-age=31536000');
 }
 
